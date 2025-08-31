@@ -112,7 +112,6 @@ function initUPE() {
 
   /* ------------------------- Miller–Rabin (BigInt) ------------------------- */
 
-  // PURE BigInt modular exponentiation
   function modPowBig(base, exp, mod) {
     let result = 1n;
     let b = base % mod;
@@ -141,7 +140,7 @@ function initUPE() {
     const bn = BigInt(n);
     const bd = BigInt(d);
     for (const a of bases) {
-      let x = modPowBig(BigInt(a), bd, bn); // <-- all BigInt now
+      let x = modPowBig(BigInt(a), bd, bn);
       if (x === 1n || x === bn - 1n) continue;
       let ok = false;
       for (let r = 1; r < s; r++) {
@@ -189,7 +188,7 @@ function initUPE() {
       let r = testCandidate(X + u);
       if (r.adm && r.prime) {
         const a = Math.abs(firstAdmissible - X);
-        const delta = (a === u) ? 0 : 1;
+        const delta = Math.max(0, admissiblesChecked - 1); // exact Δ_step
         return { a, u, prime: X + u, deltaStep: delta, checked: admissiblesChecked, P, T };
       }
       // -u
@@ -197,7 +196,7 @@ function initUPE() {
         r = testCandidate(X - u);
         if (r.adm && r.prime) {
           const a = Math.abs(firstAdmissible - X);
-          const delta = (a === u) ? 0 : 1;
+          const delta = Math.max(0, admissiblesChecked - 1); // exact Δ_step
           return { a, u, prime: X - u, deltaStep: delta, checked: admissiblesChecked, P, T };
         }
       }
@@ -232,7 +231,7 @@ function initUPE() {
       const r = testPair(a, b);
       if (r.adm && r.primepair) {
         const ta = Math.abs(firstAdmissible[1] - firstAdmissible[0]) / 2;
-        const delta = (ta === t) ? 0 : 1;
+        const delta = Math.max(0, admissiblesChecked - 1); // exact Δ_step
         return { ta, t, p: a, q: b, deltaStep: delta, checked: admissiblesChecked, P, T };
       }
     }
