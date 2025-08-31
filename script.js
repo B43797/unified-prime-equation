@@ -37,20 +37,41 @@ function initUPE() {
   }
 
   elRun.addEventListener('click', onRun);
-  elClear.addEventListener('click', () => {
-    elInput.value = '';
+  elClear.addEventListener('click', clearResults);
+  clearResults(); // initial placeholder
+
+  // NEW: when switching Prime ↔ Goldbach, clear results to avoid "blocked" feeling
+  $$('input[name="mode"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      elResults.innerHTML = `<div class="placeholder">
+        <p>Mode changé. Entrez une valeur et cliquez <em>Exécuter</em>.</p>
+        <p class="small">Astuce : pour des tailles astronomiques (ex. 10^20), l'app passe en <em>mode Log</em> et affiche P et T instantanément.</p>
+      </div>`;
+    });
+  });
+
+  function clearResults() {
+    elInput.value = elInput.value || '';
     if (elPovr) elPovr.value = '';
     elResults.innerHTML = `<div class="placeholder">
-      <p>No run yet. Choose a motif, enter a value, and click <em>Run</em>.</p>
-      <p class="small">Try <span class="mono">X = 2000000000</span> (Prime),
-      or <span class="mono">E = 1000000200</span> (Goldbach). For huge inputs like
-      <span class="mono">10^1000</span>, you’ll get predicted <span class="mono">P</span>, <span class="mono">T</span>, and Δ<sub>step</sub>.</p>
+      <p>Aucun calcul pour l’instant. Choisissez un motif, entrez une valeur et cliquez <em>Exécuter</em>.</p>
+      <p class="small">Exemples : <span class="mono">X = 2000000000</span> (Premier),
+      <span class="mono">E = 1000000200</span> (Goldbach), <span class="mono">10^1000</span> (mode Log).</p>
     </div>`;
-  });
-  elClear.click();
+  }
 
   /* ------------------------ Parsing & Log Conversion ----------------------- */
 
+  /**
+   * Parse user input:
+   * - Digits "12345…" (Number path if small enough, else Log mode)
+   * - Power forms:
+   *     - generic  a^b  (NEW)
+   *     - 10^k
+   *     - 1eK  (treated as 10^K)
+   * Returns:
+   *   { mode: 'bigint'|'log', Nnum?, lnN, base10, kind: 'prime'|'goldbach' }
+   */
   function parseInput() {
     const mode = $$('input[name="mode"]').find(r => r.checked)?.value ?? 'prime';
     let raw = (elInput.value || '').trim();
@@ -62,12 +83,23 @@ function initUPE() {
       if (parts[0] === '1') raw = `10^${parts[1]}`;
     }
 
-    const BIGINT_SAFE_LIMIT = 3.41550071728321e14; // deterministic MR with bases {2,3,5,7,11,13,17}
+    const BIGINT_SAFE_LIMIT = 3.41550071728321e14; // deterministic MR bases {2,3,5,7,11,13,17}
 
-    // Power form 10^k
-    const powerMatch = raw.match(/^10\^(\d{1,10})$/);
-    if (powerMatch) {
-      const k = Number(powerMatch[1]);
+    // NEW: generic power a^b (integers)
+    const genPow = raw.match(/^(\d{1,18})\^(\d{1,10})$/);
+    if (genPow) {
+      const base = Number(genPow[1]);
+      const exp  = Number(genPow[2]);
+      if (base < 2 || exp < 1) throw new Error('Utilisez a^b avec a≥2 et b≥1.');
+      const lnN = Math.log(base) * exp;     // ln(a^b)
+      const base10 = lnN / Math.log(10);    // log10(a^b)
+      return { mode: 'log', lnN, base10, kind: mode };
+    }
+
+    // 10^k
+    const power10 = raw.match(/^10\^(\d{1,10})$/);
+    if (power10) {
+      const k = Number(power10[1]);
       const lnN = k * Math.log(10);
       const base10 = k;
       return { mode: 'log', lnN, base10, kind: mode };
@@ -90,7 +122,7 @@ function initUPE() {
       return { mode: 'log', lnN, base10, kind: mode };
     }
 
-    throw new Error('Unsupported input. Use digits (e.g., 2000000000) or a power like 10^1000.');
+    throw new Error('Unsupported input. Use digits (e.g., 2000000000) or a power like 10^1000 or 2^512.');
   }
 
   /* -------------------------- Small Primes Sieve --------------------------- */
@@ -140,7 +172,7 @@ function initUPE() {
     const bn = BigInt(n);
     const bd = BigInt(d);
     for (const a of bases) {
-      let x = modPowBig(BigInt(a), bd, bn);
+      let x = modPowBig(BigInt(a), bd, bn); // all BigInt
       if (x === 1n || x === bn - 1n) continue;
       let ok = false;
       for (let r = 1; r < s; r++) {
