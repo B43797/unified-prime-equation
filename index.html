@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Unified Prime Equation — Goldbach as a Motif</title>
+
+  <!-- Colors: sulphur yellow on deep violet -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+
+  <meta name="description" content="A public repository presenting the Unified Prime Equation, showing how primes and Goldbach pairs emerge from a single framework with minimal correction." />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="./">Unified Prime Equation</a>
+      <div class="nav-links">
+        <a href="#calculator">Calculator</a>
+        <a href="paper.md">Paper</a>
+        <a href="about.html">About</a>
+        <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <h1>Unified Prime Equation</h1>
+      <p class="subtitle">
+        A single framework that pinpoints primes near any integer and yields Goldbach pairs
+        via a finite sieve, a central window, and a tiny bounded correction.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#calculator">Open Calculator</a>
+        <a class="btn btn-ghost" href="paper.md">Read the Paper</a>
+      </div>
+    </section>
+  </header>
+
+  <main>
+    <!-- Quick summary cards -->
+    <section class="cards">
+      <article class="card">
+        <h3>Prime Equation</h3>
+        <p>
+          Given a center <span class="mono">X</span>, find a small offset
+          <span class="mono">u</span> with <span class="mono">X+u</span> prime.
+          The admissible-first approach plus a bounded correction (Δ<sub>step</sub> ≤ 2)
+          homes in on the prime.
+        </p>
+      </article>
+      <article class="card">
+        <h3>Goldbach Motif</h3>
+        <p>
+          For even <span class="mono">E = 2x</span>, seek <span class="mono">t</span> such that
+          <span class="mono">x−t</span> and <span class="mono">x+t</span> are both prime.
+          Symmetry of residues synchronizes admissibility on both sides.
+        </p>
+      </article>
+      <article class="card">
+        <h3>Minimal Window</h3>
+        <p>
+          Window size scales like <span class="mono">T ≍ (log N)²</span>, with small-prime
+          cutoff <span class="mono">P ≍ log N</span>. The first admissible offset typically
+          equals the true one (Δ<sub>step</sub> = 0).
+        </p>
+      </article>
+    </section>
+
+    <!-- Calculator -->
+    <section id="calculator" class="calc">
+      <h2>Unified Calculator</h2>
+      <p class="muted">
+        Enter a large integer directly (digits only), or as a power like <span class="mono">10^1000</span>.
+        The app adapts:
+        <em>BigInt mode</em> (exact) for moderate sizes; <em>Log mode</em> (predicted P, T, Δ) for gigantic sizes.
+      </p>
+
+      <div class="calc-grid">
+        <!-- Mode selector -->
+        <div class="panel">
+          <h3 class="panel-title">Choose Motif</h3>
+          <div class="mode-row">
+            <label class="mode">
+              <input type="radio" name="mode" value="prime" checked />
+              <span>Prime near X</span>
+            </label>
+            <label class="mode">
+              <input type="radio" name="mode" value="goldbach" />
+              <span>Goldbach (E = 2x)</span>
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="label">Input</span>
+            <input id="userInput" class="input" placeholder="e.g., 2000000000 or 10^1000" />
+          </label>
+
+          <div class="grid-2">
+            <label class="field">
+              <span class="label">c₁ (for P ≍ c₁·log N)</span>
+              <input id="c1" class="input" type="number" step="0.1" min="0.1" value="1.0" />
+            </label>
+            <label class="field">
+              <span class="label">c₂ (for T ≍ c₂·(log N)²)</span>
+              <input id="c2" class="input" type="number" step="0.1" min="0.1" value="1.0" />
+            </label>
+          </div>
+
+          <div class="grid-2">
+            <label class="field">
+              <span class="label">λ (hybrid weight)</span>
+              <input id="lambda" class="input" type="number" step="0.05" min="0" max="1" value="0.5" />
+            </label>
+            <label class="field">
+              <span class="label">Small-prime cutoff (override)</span>
+              <input id="Poverride" class="input" type="number" step="1" min="0" placeholder="optional" />
+            </label>
+          </div>
+
+          <div class="btn-row">
+            <button id="btnRun" class="btn btn-primary">Run</button>
+            <button id="btnClear" class="btn btn-ghost">Clear</button>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div class="panel">
+          <h3 class="panel-title">Results</h3>
+          <div id="results" class="results">
+            <div class="placeholder">
+              <p>No run yet. Choose a motif, enter a value, and click <em>Run</em>.</p>
+              <p class="small">
+                Tip: try <span class="mono">X = 2000000000</span> (Prime), or <span class="mono">E = 1000000200</span> (Goldbach).
+                For huge inputs like <span class="mono">10^1000</span>, the app switches to Log mode and shows predicted
+                <span class="mono">P</span>, <span class="mono">T</span>, and expected Δ<sub>step</sub>.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <details class="details">
+        <summary>What the app does (in plain words)</summary>
+        <ul>
+          <li>Parses your input: a big integer or a power like <span class="mono">10^k</span>.</li>
+          <li>Computes <span class="mono">log N</span> and sets <span class="mono">P ≍ c₁·log N</span>, <span class="mono">T ≍ c₂·(log N)²</span>.</li>
+          <li>Builds a small-prime sieve up to <span class="mono">P</span> and ranks admissible offsets with a hybrid score.</li>
+          <li><em>Prime motif:</em> finds the first admissible offset <span class="mono">u</span> and checks if <span class="mono">X+u</span> is prime; applies a tiny correction if needed.</li>
+          <li><em>Goldbach motif:</em> finds the first admissible <span class="mono">t</span> and checks if <span class="mono">x±t</span> are both prime; applies a tiny correction if needed.</li>
+          <li>For gigantic N (e.g., <span class="mono">10^1000</span>), it reports predicted <span class="mono">P, T</span> and Δ<sub>step</sub> (log-mode preview).</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- Callouts -->
+    <section class="callouts">
+      <article class="callout">
+        <h3>Theorem (Unified Prime Equation)</h3>
+        <p>
+          With a finite sieve up to <span class="mono">P ≍ log N</span> and a central window
+          <span class="mono">T ≍ (log N)²</span>, there exists an offset inside ±T that realizes
+          the chosen motif in primes, found after testing at most <span class="mono">O(log N)</span>
+          ranked admissibles (bounded correction).
+        </p>
+      </article>
+      <article class="callout">
+        <h3>Corollary (Goldbach)</h3>
+        <p>
+          For any even <span class="mono">E = 2x</span>, the symmetric motif <span class="mono">{−t,+t}</span>
+          produces a prime pair <span class="mono">(x−t, x+t)</span> with <span class="mono">|t| ≤ T</span>;
+          the first admissible usually suffices (Δ<sub>step</sub> = 0), else correction ≤ 2.
+        </p>
+      </article>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="foot-grid">
+      <div>
+        <div class="brand foot">Unified Prime Equation</div>
+        <p class="muted small">© 2025 Bahbouhi Bouchaib — MIT License</p>
+      </div>
+      <div class="foot-links">
+        <a href="paper.md">Paper</a>
+        <a href="about.html">About</a>
+        <a href="README.md">README</a>
+        <a href="sitemap.xml">Sitemap</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
+```0
