@@ -2,8 +2,7 @@
    Unified Prime Equation — Calculator Logic (script.js)
    Sulphur Yellow on Deep Violet theme (see style.css)
    Author: Bahbouhi Bouchaib
-   NOTE: Be sure to include this in index.html with:
-         <script src="script.js" defer></script>
+   NOTE: include with: <script src="script.js" defer></script>
    ========================================================================== */
 
 if (document.readyState === 'loading') {
@@ -26,14 +25,12 @@ function initUPE() {
   const elClear   = $('#btnClear');
   const elResults = $('#results');
 
-  // Guard: if any essential element is missing, show a helpful message.
   if (!elRun || !elClear || !elInput || !elC1 || !elC2 || !elLambda || !elResults) {
-    console.error('Unified Prime Equation: missing required DOM elements. Check IDs in index.html.');
+    console.error('Unified Prime Equation: missing required DOM elements.');
     if (elResults) {
       elResults.innerHTML = `<div class="result-block">
         <h4>Setup error</h4>
-        <p>Some required elements are missing. Please verify IDs:
-        <span class="mono">#btnRun, #btnClear, #userInput, #c1, #c2, #lambda, #Poverride, #results</span>.</p>
+        <p>Missing IDs. Ensure: <span class="mono">#btnRun, #btnClear, #userInput, #c1, #c2, #lambda, #Poverride, #results</span>.</p>
       </div>`;
     }
     return;
@@ -45,27 +42,15 @@ function initUPE() {
     if (elPovr) elPovr.value = '';
     elResults.innerHTML = `<div class="placeholder">
       <p>No run yet. Choose a motif, enter a value, and click <em>Run</em>.</p>
-      <p class="small">Tip: try <span class="mono">X = 2000000000</span> (Prime),
+      <p class="small">Try <span class="mono">X = 2000000000</span> (Prime),
       or <span class="mono">E = 1000000200</span> (Goldbach). For huge inputs like
-      <span class="mono">10^1000</span>, the app switches to Log mode and shows
-      predicted <span class="mono">P</span>, <span class="mono">T</span>, and expected
-      Δ<sub>step</sub>.</p>
+      <span class="mono">10^1000</span>, you’ll get predicted <span class="mono">P</span>, <span class="mono">T</span>, and Δ<sub>step</sub>.</p>
     </div>`;
   });
-
-  // Initialize placeholder once
   elClear.click();
 
   /* ------------------------ Parsing & Log Conversion ----------------------- */
 
-  /**
-   * Parse user input:
-   * - Accepts plain digits "123456..." (as Number if small enough)
-   * - Accepts power form "10^k" or "1eK" (case-insensitive)
-   * - Accepts huge digit strings (digits only) for log-mode estimation
-   * Returns:
-   *   { mode: 'bigint'|'log', Nnum?, lnN, base10, kind: 'prime'|'goldbach' }
-   */
   function parseInput() {
     const mode = $$('input[name="mode"]').find(r => r.checked)?.value ?? 'prime';
     let raw = (elInput.value || '').trim();
@@ -79,18 +64,17 @@ function initUPE() {
 
     const BIGINT_SAFE_LIMIT = 3.41550071728321e14; // deterministic MR with bases {2,3,5,7,11,13,17}
 
-    // Case 1: power form 10^k
-    const powerMatch = raw.match(/^10\^(\d{1,10})$/); // allow k up to 10 digits
+    // Power form 10^k
+    const powerMatch = raw.match(/^10\^(\d{1,10})$/);
     if (powerMatch) {
       const k = Number(powerMatch[1]);
-      const lnN = k * Math.log(10);  // natural log
-      const base10 = k;              // log10 N
+      const lnN = k * Math.log(10);
+      const base10 = k;
       return { mode: 'log', lnN, base10, kind: mode };
     }
 
-    // Case 2: digits only (possibly huge)
+    // Digits only (possibly huge)
     if (/^\d+$/.test(raw)) {
-      // If it fits our Number threshold, use exact arithmetic path
       if (raw.length < 15 || Number(raw) <= BIGINT_SAFE_LIMIT) {
         const Nnum = Number(raw);
         if (!Number.isFinite(Nnum) || Nnum < 2) throw new Error('Please enter an integer ≥ 2.');
@@ -98,7 +82,6 @@ function initUPE() {
         const base10 = Math.log10(Nnum);
         return { mode: 'bigint', Nnum, lnN, base10, kind: mode };
       }
-      // Otherwise estimate lnN from length and leading digits: N ≈ d × 10^(L-1)
       const L = raw.length;
       const leadStr = raw.slice(0, Math.min(16, L));
       const lead = Number(leadStr);
@@ -107,7 +90,7 @@ function initUPE() {
       return { mode: 'log', lnN, base10, kind: mode };
     }
 
-    throw new Error('Unsupported input format. Use digits only (e.g., 2000000000) or a power like 10^1000.');
+    throw new Error('Unsupported input. Use digits (e.g., 2000000000) or a power like 10^1000.');
   }
 
   /* -------------------------- Small Primes Sieve --------------------------- */
@@ -127,24 +110,23 @@ function initUPE() {
     return primes;
   }
 
-  /* ------------------------- Miller–Rabin (Number) ------------------------- */
+  /* ------------------------- Miller–Rabin (BigInt) ------------------------- */
 
-  // Fast modular exponentiation
-  function modPow(base, exp, mod) {
+  // PURE BigInt modular exponentiation
+  function modPowBig(base, exp, mod) {
     let result = 1n;
-    let b = BigInt(base % mod);
-    let e = BigInt(exp);
-    let m = BigInt(mod);
+    let b = base % mod;
+    let e = exp;
     while (e > 0n) {
-      if (e & 1n) result = (result * b) % m;
-      b = (b * b) % m;
+      if (e & 1n) result = (result * b) % mod;
+      b = (b * b) % mod;
       e >>= 1n;
     }
     return result;
   }
 
   function isProbablePrimeNumber(n) {
-    // Deterministic Miller–Rabin for n < 341,550,071,728,321 using bases [2,3,5,7,11,13,17]
+    // Deterministic MR for n < 341,550,071,728,321 (bases [2,3,5,7,11,13,17])
     if (n < 2) return false;
     const small = [2,3,5,7,11,13,17,19,23,29,31,37];
     for (const p of small) {
@@ -159,7 +141,7 @@ function initUPE() {
     const bn = BigInt(n);
     const bd = BigInt(d);
     for (const a of bases) {
-      let x = modPow(a, bd, bn);
+      let x = modPowBig(BigInt(a), bd, bn); // <-- all BigInt now
       if (x === 1n || x === bn - 1n) continue;
       let ok = false;
       for (let r = 1; r < s; r++) {
@@ -186,12 +168,6 @@ function initUPE() {
     return true;
   }
 
-  /**
-   * Search nearest prime to X:
-   *  - build symmetric offsets u=0,1,1,2,2,... up to T
-   *  - check admissibility against small primes s ≤ P
-   *  - Δ_step = number of admissible candidates checked before hitting a true prime
-   */
   function primeNearX(X, P, T) {
     const smallPrimes = sievePrimesUpTo(P);
     let admissiblesChecked = 0;
@@ -213,7 +189,7 @@ function initUPE() {
       let r = testCandidate(X + u);
       if (r.adm && r.prime) {
         const a = Math.abs(firstAdmissible - X);
-        const delta = (a === u) ? 0 : 1; // simple bound (exact ranking omitted)
+        const delta = (a === u) ? 0 : 1;
         return { a, u, prime: X + u, deltaStep: delta, checked: admissiblesChecked, P, T };
       }
       // -u
@@ -229,12 +205,6 @@ function initUPE() {
     return { a: null, u: null, prime: null, deltaStep: null, checked: admissiblesChecked, P, T };
   }
 
-  /**
-   * Goldbach for E=2x:
-   *  - search t=0,1,1,2,2,... up to T
-   *  - admissible if both (x-t) and (x+t) pass small-prime sieve
-   *  - success when both are prime
-   */
   function goldbachPair(E, P, T) {
     if (E % 2 !== 0) throw new Error('E must be even.');
     const x = Math.floor(E / 2);
@@ -251,8 +221,8 @@ function initUPE() {
       return { adm: true, primepair: pa && pb };
     }
 
-    // t=0 (degenerate check)
-    let r0 = testPair(x, x);
+    // t=0 (degenerate)
+    const r0 = testPair(x, x);
     if (r0.adm && r0.primepair) {
       return { ta: 0, t: 0, p: x, q: x, deltaStep: 0, checked: 1, P, T };
     }
@@ -262,7 +232,7 @@ function initUPE() {
       const r = testPair(a, b);
       if (r.adm && r.primepair) {
         const ta = Math.abs(firstAdmissible[1] - firstAdmissible[0]) / 2;
-        const delta = (ta === t) ? 0 : 1; // simple bound
+        const delta = (ta === t) ? 0 : 1;
         return { ta, t, p: a, q: b, deltaStep: delta, checked: admissiblesChecked, P, T };
       }
     }
@@ -278,37 +248,32 @@ function initUPE() {
       const c2 = Math.max(0.1, Number(elC2.value) || 1.0);
       const lam = Math.min(1, Math.max(0, Number(elLambda.value) || 0.5));
 
-      // Compute P and T from lnN (override if provided)
       let P = Math.floor(c1 * parsed.lnN);
       const T = Math.max(1, Math.floor(c2 * parsed.lnN * parsed.lnN));
       if (elPovr && elPovr.value) P = Math.max(3, Math.floor(Number(elPovr.value)));
 
       if (parsed.mode === 'log') {
-        // Log-mode: preview only (no primality at astronomical sizes)
-        const body = `
+        elResults.innerHTML = `
           <div class="result-block">
             <h4>Log Mode Preview</h4>
             <p><span class="mono">log₁₀ N</span> ≈ <b>${fmt(parsed.base10, 6)}</b>,
                <span class="mono">ln N</span> ≈ <b>${fmt(parsed.lnN, 6)}</b></p>
             <p>Small-prime cutoff <span class="mono">P</span> ≈ <b>${P}</b>,
                window radius <span class="mono">T</span> ≈ <b>${T.toLocaleString()}</b>.</p>
-            <p>Expected behavior: first admissible hits directly (Δ<sub>step</sub>=0);
-               otherwise correction ≤ 2 admissible steps.</p>
-            <p class="small muted">Note: For gigantic N, the app does not attempt primality tests in-browser.
-            Use this as a configuration guide (P, T) for external verifiers (ECPP, PARI/GP) if needed.</p>
+            <p>Expected: first admissible hits directly (Δ<sub>step</sub>=0);
+               otherwise ≤ 2 admissible steps.</p>
+            <p class="small muted">For gigantic N, use these parameters with external verifiers (ECPP, PARI/GP) if needed.</p>
           </div>`;
-        elResults.innerHTML = body;
         return;
       }
 
-      // BigInt/Number mode (exact up to ~3.4e14)
       if (parsed.kind === 'prime') {
         const X = parsed.Nnum;
         const out = primeNearX(X, P, T);
         if (out.prime) {
           elResults.innerHTML = renderPrimeResult(X, out, lam);
         } else {
-          elResults.innerHTML = renderFail('No prime found within the current window. Try increasing c₂ (thus T).', P, T);
+          elResults.innerHTML = renderFail('No prime found within the current window. Increase c₂ (thus T).', P, T);
         }
       } else {
         const E = parsed.Nnum;
@@ -317,7 +282,7 @@ function initUPE() {
         if (out.p && out.q) {
           elResults.innerHTML = renderGoldbachResult(E, out, lam);
         } else {
-          elResults.innerHTML = renderFail('No Goldbach pair found within the current window. Try increasing c₂ (thus T).', P, T);
+          elResults.innerHTML = renderFail('No Goldbach pair found within the current window. Increase c₂ (thus T).', P, T);
         }
       }
     } catch (err) {
